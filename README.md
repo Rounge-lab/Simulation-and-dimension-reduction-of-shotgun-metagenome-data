@@ -9,5 +9,6 @@ To ensure the security and privacy of the data involved in this project, all sen
 
 To run the scripts contained in this repository, you must have authorized access to the project on the Tjenester for Sensitive Data (TSD) platform. TSD provides a secure environment for processing sensitive data, which is crucial for our research.
 
-
+## Documentation
+* [User manual](#User-manual)
 
