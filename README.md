@@ -1,5 +1,5 @@
 # Simulation-and-dimension-reduction-of-shotgun-metagenome-data
-This repository contains all scripts, documents and information related to the master's thesis "Simulation and dimension reduction of shotgun metagenome data". The thesis is available at (coming later)
+This repository contains all scripts, documents and information related to the Master's thesis "Simulation and dimension reduction of shotgun metagenome data". The thesis is available at (coming later).
 
 ## Important Note on Sensitive Information
 
@@ -11,4 +11,5 @@ To run the scripts contained in this repository, you must have authorized access
 
 ## Documentation
 * [User manual](https://github.com/Rounge-lab/Simulation-and-dimension-reduction-of-shotgun-metagenome-data/wiki/User-manual)
+* [Custom made functions](https://github.com/Rounge-lab/Simulation-and-dimension-reduction-of-shotgun-metagenome-data/wiki/Documentation-for-custom-made-functions)
 
