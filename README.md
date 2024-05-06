@@ -3,7 +3,7 @@ This repository contains all scripts, documents and information related to the M
 
 ## Important Note on Sensitive Information
 
-To ensure the security and privacy of the data involved in this project, all sensitive information has been removed from the scripts and other files in this repository. This includes, but is not limited to, sample IDs and complete paths.
+To ensure the security and privacy of the data involved in this project, all sensitive information has been removed from the scripts and other files in this repository. This includes, but is not limited to, sample IDs and complete paths. Additionally, some directroies may be empty due to sensitive information. 
 
 ### Access Requirements
 
