@@ -1,0 +1,9 @@
+sample_table: /PATH/metaphlan_input/samples.tsv
+fastq_path: /PATH/metaphlan_input/fastq/some_directory
+
+database_path: /PATH/
+knead_db: knead_human_bt2/hg37dec_v0.1
+bt2_db_path: bowtie2db
+bt2_db: mpa_vOct22_CHOCOPhlAnSGB_202212
+humann_chocophlan: humann/chocophlan/
+humann_uniref: humann/uniref/

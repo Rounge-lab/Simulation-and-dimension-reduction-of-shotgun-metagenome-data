@@ -1,0 +1,301 @@
+import pandas as pd
+import re
+import random
+import string
+import os
+import csv
+
+configfile: "config/config.yaml"
+
+sampleTable=pd.read_csv(config["sample_table"], index_col=0, sep = '\t')
+
+samples=list(sampleTable.index)
+wildcard_constraints:
+    clade="[A-Za-z0-9_]+"
+
+def get_prevalent_clades(wildcards):
+    clade_file_path = checkpoints.get_clades_for_strain_analysis.get(**wildcards).output.filtered_clade_list
+    clade_table = pd.read_csv(clade_file_path, sep="\t")
+    prevalent_clades = clade_table["clade"]
+    return [ os.path.join("data","strainphlan","t__"+clade,"flag") for clade in prevalent_clades ]
+    
+
+def get_strain_clades(wildcards):
+    ## Link to checkpoint
+    strainphlan_flag = checkpoints.gather_strainphlan.get(**wildcards).output[0]
+    
+    clade_file_path = checkpoints.get_clades_for_strain_analysis.get(**wildcards).output.filtered_clade_list
+    clade_table = pd.read_csv(clade_file_path, sep="\t")
+    prevalent_clades = clade_table["clade"]
+    
+    successful_clades = [ x for x in prevalent_clades if os.path.exists(os.path.join("data","strainphlan","t__"+x,"flag.yes"))]
+    return [ os.path.join("data","strainphlan","t__"+clade,"strain_sharing_threshold.tsv") for clade in successful_clades ]
+
+
+rule all:
+    input:
+        expand(os.path.join("data","metaphlan","tables", "{agg_level}.tsv"), agg_level=["profiles", "gtdb_profiles"]),
+
+# rule move:
+#     input:
+#         fastq_R1=os.path.join(config["fastq_path"],"{sample}_R1.fastq.gz"),
+#         fastq_R2=os.path.join(config["fastq_path"],"{sample}_R2.fastq.gz")
+#     output:
+#         R1=temp("/PATH/metaphlan_input/tmp_fastq/{sample}_R1.fastq.gz"),
+#         R2=temp("/PATH/metaphlan_input/tmp_fastq/{sample}_R2.fastq.gz")
+#     shell:
+#         """
+#         mv {input.fastq_R1} {output.R1}
+#         mv {input.fastq_R2} {output.R2}
+#         """
+
+
+rule knead:
+    input:
+        fastq_R1=os.path.join(config["fastq_path"],"{sample}_R1.fastq.gz"),
+        fastq_R2=os.path.join(config["fastq_path"],"{sample}_R2.fastq.gz")
+    output:
+        fastq_R1=os.path.join("data", "qc_reads","{sample}","{sample}_paired_1.fastq.gz"),
+        fastq_R2=os.path.join("data", "qc_reads","{sample}","{sample}_paired_2.fastq.gz"),
+        fastq_unmatched_1=os.path.join("data", "qc_reads","{sample}","{sample}_unmatched_1.fastq.gz"),
+        fastq_unmatched_2=os.path.join("data", "qc_reads","{sample}","{sample}_unmatched_2.fastq.gz"),
+        fastqc_dir=directory(os.path.join("data", "qc_reads","{sample}","fastqc"))
+    params:
+        db=os.path.join(config["database_path"], config["knead_db"]),
+        out_path=os.path.join("data", "qc_reads", "{sample}"),
+    log:
+        "logs/kneaddata/{sample}.log"
+    conda:
+        os.path.join("envs","biob_workflows.yaml")
+    shadow: "minimal"
+    threads:
+        8
+    shell:
+        """
+            export OMP_NUM_THREADS={threads}
+
+            kneaddata \
+                --input1 {input.fastq_R1} \
+                --input2 {input.fastq_R2} \
+                -db {params.db} \
+                --output {params.out_path} \
+                --output-prefix {wildcards.sample} \
+                --sequencer-source NexteraPE \
+                --fastqc fastqc \
+                --run-trim-repetitive \
+                -t {threads} \
+                --log {log}
+
+            for filename in {output[0]} {output[1]} {output[2]} {output[3]}; do
+                gzip "${{filename%.gz}}"
+            done
+        """
+
+rule metaphlan:
+    input:
+        #fastq_R1=temp("/PATH/metaphlan_input/tmp_fastq/{sample}_R1.fastq.gz"),
+        #fastq_R2=temp("/PATH/metaphlan_input/tmp_fastq/{sample}_R2.fastq.gz")
+        fastq_R1=os.path.join(config["fastq_path"],"{sample}_R1.fastq.gz"),
+        fastq_R2=os.path.join(config["fastq_path"],"{sample}_R2.fastq.gz")
+        #fastq_R1=rules.knead.output.fastq_R1,
+        #fastq_R2=rules.knead.output.fastq_R2,
+        #fastq_unmatched_1=rules.knead.output.fastq_unmatched_1,
+        #fastq_unmatched_2=rules.knead.output.fastq_unmatched_2
+    output:
+        profile=os.path.join("data","metaphlan","profiles","{sample}.txt"),
+        sam=os.path.join("data","metaphlan","sam","{sample}.sam.bz2"),
+        bt2_file=os.path.join("data","metaphlan","bt2","{sample}.bt2.bz"),
+        pickle=os.path.join("data","metaphlan","pkl","{sample}.pkl")
+    params:
+        bt2_db=os.path.join(config["database_path"],config["bt2_db_path"]),
+        pkl_dir=os.path.join("data","metaphlan","pkl")
+    conda:
+        os.path.join("envs","biob_workflows.yaml")
+    threads:
+        8
+    shell:
+        """
+            export OMP_NUM_THREADS={threads}
+
+            metaphlan \
+                {input.fastq_R1},{input.fastq_R2} \
+                --bowtie2out {output.bt2_file} \
+                --nproc {threads} \
+                --input_type fastq \
+                --unclassified_estimation \
+                -s {output.sam} \
+                -o {output.profile} \
+                --bowtie2db {params.bt2_db} && \
+                \
+                sample2markers.py -i {output.sam} -o {params.pkl_dir} -d {params.bt2_db}
+        """
+
+## Use the sgb to GTDB tsv file that is in the conda metaphlan folder.
+
+rule to_gtdb:
+    input:
+        profile=rules.metaphlan.output.profile
+    output:
+        gtdb_out=os.path.join("data","metaphlan","gtdb_profiles","{sample}.txt")
+    params:
+        bt2_db=os.path.join(config["database_path"],config["bt2_db_path"],config["bt2_db"]+".pkl")
+    conda:
+        os.path.join("envs","biob_workflows.yaml")
+    shell:
+        "sgb_to_gtdb_profile.py -i {input.profile} -o {output.gtdb_out} -d {params.bt2_db}"
+
+rule merge_tables:
+    input:
+        profiles=expand(os.path.join("data","metaphlan","{{agg_level}}","{sample}.txt"), sample = samples)
+    output:
+        profile_table=os.path.join("data","metaphlan","tables", "{agg_level}.tsv"),
+    params:
+        gtdb_flag = lambda w: "--gtdb_profiles" if w.agg_level == "gtdb_profiles" else ""
+    conda:
+        os.path.join("envs","biob_workflows.yaml")
+    shell:
+        "merge_metaphlan_tables.py {input.profiles} -o {output.profile_table} {params.gtdb_flag}"
+
+checkpoint get_clades_for_strain_analysis:
+    input:
+        profile=os.path.join("data","metaphlan","tables","profiles.tsv"),
+    output:
+        full_clade_list=os.path.join("data","metaphlan","tables","all_clades.tsv"),
+        filtered_clade_list=os.path.join("data","metaphlan","tables","prevalent_clades.tsv")
+    params:
+        SGB_species=os.path.join(config["database_path"], "mpa_vOct22_CHOCOPhlAnSGB_202212_species.txt"),
+        min_obs=250,
+    conda:
+        os.path.join("envs","r_cutpoints.yaml")
+    script:
+        os.path.join("scripts","get_clade_presence.R")
+
+## Rule to extract markers of a set of clades - clade identity should be defined somewhere.
+
+rule extract_markers:
+    output:
+        os.path.join("data","strainphlan","markers","{clade}.fna")
+    params:
+        bt2_db=os.path.join(config["database_path"],config["bt2_db_path"], config["bt2_db"]),
+        out_dir=os.path.join("data","strainphlan","markers")
+    conda:
+        os.path.join("envs","biob_workflows.yaml")
+    threads:
+        1
+    shell:
+        "extract_markers.py -d {params.bt2_db} -o {params.out_dir} -c {wildcards.clade}"
+
+rule strainphlan:
+    input:
+        sample_pkls=expand(os.path.join("data","metaphlan","pkl","{sample}.pkl"), sample = samples),
+        clade_markers=os.path.join("data","strainphlan","markers","{clade}.fna")
+    output:
+        strain_flag=os.path.join("data","strainphlan","{clade}","flag")
+    params:
+        out_dir=os.path.join("data","strainphlan","{clade}"),
+        bt2_db=os.path.join(config["database_path"],config["bt2_db_path"], config["bt2_db"]),
+        success=os.path.join("data","strainphlan","{clade}","flag.yes"),
+        fail=os.path.join("data","strainphlan","{clade}","flag.no"),
+    log:
+        os.path.join("logs","strainphlan","{clade}.log")
+    conda:
+        os.path.join("envs","biob_workflows.yaml")
+    threads:
+        8
+    shell:
+        """
+            [ -f {params.success} ] && rm {params.success}
+            [ -f {params.fail} ] && rm {params.fail}
+
+            export OMP_NUM_THREADS={threads}
+            
+            strainphlan \
+                -s {input.sample_pkls} \
+                -o {params.out_dir} \
+                -d {params.bt2_db} \
+                -m {input.clade_markers} \
+                -n {threads} \
+                -c {wildcards.clade} \
+                --non_interactive &> {log} && {{ touch {params.success}; }} || {{ touch {params.fail}; }}
+            
+            touch {output.strain_flag}
+        """
+
+checkpoint gather_strainphlan:
+    input:
+        get_prevalent_clades,
+    output:
+        os.path.join("data","strainphlan","strainphlan.flag"),
+    shell:
+        "touch {output[0]}"
+
+rule extract_pairwise_distances:
+    input:
+        raxml=os.path.join("data","strainphlan","{clade}","RAxML_bestTree.{clade}.StrainPhlAn4.tre")
+    output:
+        dists=os.path.join("data","strainphlan","{clade}","{clade}_dists.tsv")
+    log:
+        os.path.join("logs","strainphlan","pw_dists","{clade}.log")
+    conda:
+        os.path.join("envs","biob_workflows.yaml")
+    shell:
+        """
+            ./workflow/pyphlan/tree_pairwisedists.py -n \
+                {input.raxml} \
+                {output.dists} &> {log}
+        """
+
+rule define_strain_sharing:
+    input:
+        dists=os.path.join("data","strainphlan","{clade}","{clade}_dists.tsv"),
+        sample_info=config["sample_table"]
+    output:
+        strain_sharing_threshold=os.path.join("data","strainphlan","{clade}","strain_sharing_threshold.tsv"),
+        dist_dist=os.path.join("data","strainphlan","{clade}","distance_distributions.png")
+    params:
+        grouping_var = "participant_id",
+        grouping_levels = ["2mnd", "12mnd"],
+        min_obs = 5,
+        vc_thresholds=os.path.join("config", "VallesColomerM_2022_Nov19_thresholds.tsv")
+    conda:
+        os.path.join("envs","r_cutpoints.yaml")
+    script:
+        "scripts/define_strain_sharing.R"
+
+rule humann:
+    input:
+        reads=rules.knead.output[:4],
+        bugs_list= rules.metaphlan.output.profile
+    output:
+        concat_reads=temp(os.path.join("data","humann","concat","{sample}.fastq.gz")),
+        genefamilies=os.path.join("data","humann","outfiles","{sample}_genefamilies.tsv"),
+        pathcoverage=os.path.join("data","humann","outfiles","{sample}_pathcoverage.tsv"),
+        pathabundance=os.path.join("data","humann","outfiles","{sample}_pathabundance.tsv"),
+    log:
+        os.path.join("logs","humann","run","{sample}.log"),
+        os.path.join("logs","humann","term","{sample}.log")
+    shadow: "minimal"
+    threads:
+        20
+    benchmark:
+        "benchmarks/humann/{sample}.txt"
+    conda:
+        os.path.join("envs","biob_workflows.yaml")
+    params:
+        choco_db_path=os.path.join(config["database_path"],config["humann_chocophlan"]),
+        uniref_db_path=os.path.join(config["database_path"],config["humann_uniref"]),
+        out_dir=os.path.join("data","humann","outfiles"),
+    shell:
+        """
+        export OMP_NUM_THREADS={threads}
+        cat {input.reads} > {output.concat_reads}
+
+        humann_config --update database_folders nucleotide {params.choco_db_path}
+        humann_config --update database_folders protein {params.uniref_db_path}
+        humann \
+            -i {output.concat_reads} \
+            -o {params.out_dir} \
+            --threads {threads} \
+            --taxonomic-profile {input.bugs_list} \
+            --o-log {log[0]} &> {log[1]}
+        """

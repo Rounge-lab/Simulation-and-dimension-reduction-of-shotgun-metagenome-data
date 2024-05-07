@@ -1,0 +1,21 @@
+## This is a yaml file, defining options for specific rules or by default.
+## The '#' defines a comment.
+## the two spaces at the beginning of rows below rulenames are important.
+## For more information see https://snakemake.readthedocs.io/en/stable/executing/cluster-cloud.html#cluster-execution
+
+# default parameter for all rules
+__default__:
+  #queue: normal
+  nodes: 1
+  account: p1068_tsd
+  # partition: accel
+  # mem-per-cpu: 10g
+  mem: 60
+  time: 8 # hours
+  threads: 8
+
+
+humann:
+  time: 96
+  threads: 20
+  mem: 100
