@@ -11,5 +11,4 @@ To run the scripts contained in this repository, you must have authorized access
 
 ## Documentation
 * [User manual](https://github.com/Rounge-lab/Simulation-and-dimension-reduction-of-shotgun-metagenome-data/wiki/User-manual)
-* [Custom made functions](https://github.com/Rounge-lab/Simulation-and-dimension-reduction-of-shotgun-metagenome-data/wiki/Documentation-for-custom-made-functions)
-
+* [Custom made functions](https://github.com/Rounge-lab/Simulation-and-dimension-reduction-of-shotgun-metagenome-data/wiki/Documentation-for-custom-functions-in-all_functions.R)
