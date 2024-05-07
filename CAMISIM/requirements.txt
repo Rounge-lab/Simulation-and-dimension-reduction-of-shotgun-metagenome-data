@@ -1,0 +1,5 @@
+numpy
+biopython
+matplotlib
+biom-format
+ete3
