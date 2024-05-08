@@ -13,11 +13,11 @@ The CAMISIM GitHub page is available [here](https://github.com/CAMI-challenge/CA
 
 ## Important Note on Sensitive Information
 
-To ensure the security and privacy of the data involved in this project, all sensitive information has been removed from the scripts and other files in this repository. This includes, but is not limited to, sample IDs and complete paths. Additionally, some directroies may be empty due to sensitive information. 
+To ensure the security and privacy of the data involved in this project, all sensitive information has been removed from the scripts and other files in this repository. This includes, but is not limited to, sample IDs and complete paths.
 
 ### Access Requirements
 
-To run the scripts contained in this repository, you must have authorized access to the project on the Tjenester for Sensitive Data (TSD) platform. TSD provides a secure environment for processing sensitive data, which is crucial for our research.
+To run the scripts contained in this repository, you must have authorized access to the project on the Tjenester for Sensitive Data [(TSD)](https://www.uio.no/tjenester/it/forskning/sensitiv/) platform. TSD provides a secure environment for processing sensitive data, which is crucial for our research.
 
 ## Documentation
 * [User manual](https://github.com/Rounge-lab/Simulation-and-dimension-reduction-of-shotgun-metagenome-data/wiki/User-manual)
