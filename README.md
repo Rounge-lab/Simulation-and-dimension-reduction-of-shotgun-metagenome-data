@@ -1,5 +1,7 @@
 # Simulation-and-dimension-reduction-of-shotgun-metagenome-data
-This repository contains all scripts, documents and information related to the Master's thesis "Simulation and dimension reduction of shotgun metagenome data". The thesis is available at (coming later).
+This repository contains all scripts, documents and information related to the Master's thesis "Simulation and dimension reduction of shotgun metagenome data" by Cassandra Hjortdahl. 
+
+The work was carried out at the Norwegian University of Life Sciences (NMBU) at the Faculty of Chemistry, Biotechnology and Food Science, and in collaboration with the CRCbiome group at the Cancer Registry of Norway. Supervisors: Professor Siv Kjølsrud Bøhn, Professor Trine Ballestad Rounge, and Einar Elvbakken Birkeland. 
 
 ## Important Note on CAMISIM
 
